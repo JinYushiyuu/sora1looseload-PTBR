@@ -126,7 +126,7 @@
       <AdditionalDependencies>detours.lib</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
-      <Command>cd /d "$(SolutionDir)external\detours"
+      <Command>cd /d "$(SolutionDir)external\detours\src"
 nmake
 </Command>
     </PreBuildEvent>
@@ -151,7 +151,7 @@ nmake
       <AdditionalLibraryDirectories>$(SolutionDir)external\detours\lib.X64</AdditionalLibraryDirectories>
     </Link>
     <PreBuildEvent>
-      <Command>cd /d "$(SolutionDir)external\detours"
+      <Command>cd /d "$(SolutionDir)external\detours\src"
 nmake
 </Command>
     </PreBuildEvent>

@@ -18,6 +18,13 @@ jobs:
       - name: Configurar MSBuild
         uses: microsoft/setup-msbuild@v2
 
+      # --- NOVO PASSO ADICIONADO AQUI ---
+      - name: Configurar ambiente MSVC x64
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      # ---------------------------------
+
       - name: Compilar (Release x64)
         run: msbuild sora1looseload.sln /p:Configuration=Release /p:Platform=x64
 

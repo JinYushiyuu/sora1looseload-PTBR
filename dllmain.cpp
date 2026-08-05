@@ -17,6 +17,9 @@ std::atomic<unsigned __int16> g_currentLocale = 0;
 std::string g_localeSuffix;
 std::mutex g_localeMutex;
 
+// ---- MOD: nome da pasta prefixo, sem barras. Troque "PT-BR" se quiser outro nome. ----
+const char* g_modPrefix = "PT-BR";
+
 void InitLogFile() {
     gLogFile = _fsopen("console.log", "w", _SH_DENYNO);
     if (gLogFile) {
@@ -32,7 +35,6 @@ void Log(const char* fmt, ...) {
     vsnprintf(buf, sizeof(buf), fmt, args);
     buf[sizeof(buf) - 1] = '\0';
     va_end(args);
-
     printf("%s\n", buf);
     if (gLogFile) {
         fprintf(gLogFile, "%s\n", buf);
@@ -68,7 +70,6 @@ typedef void(__fastcall* LocaleHandler_t)(__int64 mgr, char* dest, unsigned __in
 InitialFileCheck_t oInitialFileCheck = nullptr;
 DebugLogger_t oDebugLogger = nullptr;
 LocaleHandler_t oLocaleHandler = nullptr;
-
 __int64 g_localeMgr = 0;
 
 __int64 __fastcall InitialFileCheck(__int64 a1, const char* a2, unsigned int a3, unsigned int a4, unsigned __int16 a5)
@@ -96,10 +97,9 @@ __int64 __fastcall InitialFileCheck(__int64 a1, const char* a2, unsigned int a3,
 
     auto normalize_to_backslashes = [](char* s) {
         for (; *s; ++s) if (*s == '/') *s = '\\';
-        };
+    };
 
     bool hasLocaleSuffix = false;
-
     if (oLocaleHandler && g_localeMgr)
     {
         localizedPath[0] = '\0';
@@ -111,7 +111,6 @@ __int64 __fastcall InitialFileCheck(__int64 a1, const char* a2, unsigned int a3,
             char destNorm[MAX_PATH];
             strncpy_s(srcNorm, sizeof(srcNorm), a2, _TRUNCATE);
             strncpy_s(destNorm, sizeof(destNorm), localizedPath, _TRUNCATE);
-
             for (char* p = srcNorm; *p; ++p) if (*p == '\\') *p = '/';
             for (char* p = destNorm; *p; ++p) if (*p == '\\') *p = '/';
 
@@ -140,26 +139,47 @@ __int64 __fastcall InitialFileCheck(__int64 a1, const char* a2, unsigned int a3,
             if (hasLocaleSuffix)
             {
                 char fullPath[MAX_PATH];
+
+                // ---- MOD: tenta primeiro dentro da pasta prefixo (ex: PT-BR\) ----
                 if (gameDirLen && gameDirHasSlash)
-                    snprintf(fullPath, sizeof(fullPath), "%s%s", g_gameDir, localizedPath);
+                    snprintf(fullPath, sizeof(fullPath), "%s%s\\%s", g_gameDir, g_modPrefix, localizedPath);
                 else if (gameDirLen)
-                    snprintf(fullPath, sizeof(fullPath), "%s\\%s", g_gameDir, localizedPath);
+                    snprintf(fullPath, sizeof(fullPath), "%s\\%s\\%s", g_gameDir, g_modPrefix, localizedPath);
                 else
-                    snprintf(fullPath, sizeof(fullPath), "%s", localizedPath);
+                    snprintf(fullPath, sizeof(fullPath), "%s\\%s", g_modPrefix, localizedPath);
 
                 normalize_to_backslashes(fullPath);
-
-                Log("[MOD] Checking localized loose file: '%s'", fullPath);
+                Log("[MOD] Checking prefixed localized loose file: '%s'", fullPath);
 
                 if (FileExistsOnDisk(fullPath))
                 {
-                    Log("[MOD] Found localized loose file! Using '%s'", fullPath);
+                    Log("[MOD] Found prefixed localized loose file! Using '%s'", fullPath);
                     strncpy_s(safeFullPath, sizeof(safeFullPath), fullPath, _TRUNCATE);
                     finalPath = safeFullPath;
                 }
                 else
                 {
-                    finalPath = localizedPath;
+                    // ---- MOD: fallback pro comportamento original (sem prefixo) ----
+                    if (gameDirLen && gameDirHasSlash)
+                        snprintf(fullPath, sizeof(fullPath), "%s%s", g_gameDir, localizedPath);
+                    else if (gameDirLen)
+                        snprintf(fullPath, sizeof(fullPath), "%s\\%s", g_gameDir, localizedPath);
+                    else
+                        snprintf(fullPath, sizeof(fullPath), "%s", localizedPath);
+
+                    normalize_to_backslashes(fullPath);
+                    Log("[MOD] Checking localized loose file: '%s'", fullPath);
+
+                    if (FileExistsOnDisk(fullPath))
+                    {
+                        Log("[MOD] Found localized loose file! Using '%s'", fullPath);
+                        strncpy_s(safeFullPath, sizeof(safeFullPath), fullPath, _TRUNCATE);
+                        finalPath = safeFullPath;
+                    }
+                    else
+                    {
+                        finalPath = localizedPath;
+                    }
                 }
             }
         }
@@ -172,30 +192,49 @@ __int64 __fastcall InitialFileCheck(__int64 a1, const char* a2, unsigned int a3,
     if (finalPath == a2)
     {
         char fullPathToCheck[MAX_PATH];
+
+        // ---- MOD: tenta primeiro dentro da pasta prefixo (ex: PT-BR\) ----
         if (gameDirLen && gameDirHasSlash)
-            snprintf(fullPathToCheck, sizeof(fullPathToCheck), "%s%s", g_gameDir, a2);
+            snprintf(fullPathToCheck, sizeof(fullPathToCheck), "%s%s\\%s", g_gameDir, g_modPrefix, a2);
         else if (gameDirLen)
-            snprintf(fullPathToCheck, sizeof(fullPathToCheck), "%s\\%s", g_gameDir, a2);
+            snprintf(fullPathToCheck, sizeof(fullPathToCheck), "%s\\%s\\%s", g_gameDir, g_modPrefix, a2);
         else
-            snprintf(fullPathToCheck, sizeof(fullPathToCheck), "%s", a2);
+            snprintf(fullPathToCheck, sizeof(fullPathToCheck), "%s\\%s", g_modPrefix, a2);
 
         normalize_to_backslashes(fullPathToCheck);
-
-        Log("[MOD] Checking standard loose file: '%s'", fullPathToCheck);
+        Log("[MOD] Checking prefixed loose file: '%s'", fullPathToCheck);
 
         if (FileExistsOnDisk(fullPathToCheck))
         {
-            Log("[MOD] Standard loose file found: '%s'", fullPathToCheck);
+            Log("[MOD] Prefixed loose file found: '%s'", fullPathToCheck);
             strncpy_s(safeFullPath, sizeof(safeFullPath), fullPathToCheck, _TRUNCATE);
             finalPath = safeFullPath;
+        }
+        else
+        {
+            // ---- MOD: fallback pro comportamento original (sem prefixo) ----
+            if (gameDirLen && gameDirHasSlash)
+                snprintf(fullPathToCheck, sizeof(fullPathToCheck), "%s%s", g_gameDir, a2);
+            else if (gameDirLen)
+                snprintf(fullPathToCheck, sizeof(fullPathToCheck), "%s\\%s", g_gameDir, a2);
+            else
+                snprintf(fullPathToCheck, sizeof(fullPathToCheck), "%s", a2);
+
+            normalize_to_backslashes(fullPathToCheck);
+            Log("[MOD] Checking standard loose file: '%s'", fullPathToCheck);
+
+            if (FileExistsOnDisk(fullPathToCheck))
+            {
+                Log("[MOD] Standard loose file found: '%s'", fullPathToCheck);
+                strncpy_s(safeFullPath, sizeof(safeFullPath), fullPathToCheck, _TRUNCATE);
+                finalPath = safeFullPath;
+            }
         }
     }
 
     Log("[MOD] Passing '%s' to original InitialFileCheck", finalPath);
     return oInitialFileCheck(a1, finalPath, a3, a4, a5);
 }
-
-
 
 void __fastcall DebugLogger(int a1, __int64 a2, __int64 a3, const char* a4, ...) {
     if (!a4) return;
@@ -269,14 +308,18 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
 
             const char* initialFileCheckSig_GLB = "\x48\x89\x5C\x24\x20\x55\x56\x57\x41\x56\x41\x57\x48\x8D\xAC\x24\x90\xFC\xFF\xFF";
             const char* initialFileCheckMask_GLB = "xxxxxxxxxxxxxxxxxxxx";
+
             const char* initialFileCheckSig_CLE = "\x48\x89\x5C\x24\x20\x55\x56\x57\x41\x56\x41\x57\x48\x81\xEC\x60\x02\x00\x00";
             const char* initialFileCheckMask_CLE = "xxxxxxxxxxxxxxxxxxx";
+
             const char* debugLoggerSig = "\x83\xF9\x02\x0F\x8C\x82\x00\x00\x00\x4C\x89\x4C\x24\x20\x53\x57";
             const char* debugLoggerMask = "xxxxxxxxxxxxxxxx";
+
             const char* localeHandlerSig = "\x40\x55\x53\x56\x57\x41\x54\x41\x55\x41\x56\x41\x57\x48\x8D\xAC\x24\xA8\xFE\xFF\xFF";
             const char* localeHandlerMask = "xxxxxxxxxxxxxxxxxxxxx";
 
             Log("Scanning for signatures...");
+
             uintptr_t debugLoggerAddr = FindPattern(base, moduleSize, debugLoggerSig, debugLoggerMask);
             uintptr_t initialFileCheckAddr = FindPattern(base, moduleSize, initialFileCheckSig_GLB, initialFileCheckMask_GLB);
             if (!initialFileCheckAddr)
@@ -301,7 +344,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
             DetourTransactionCommit();
 
             Log("All detours attached successfully.");
-            }).detach();
+        }).detach();
     }
     return TRUE;
 }

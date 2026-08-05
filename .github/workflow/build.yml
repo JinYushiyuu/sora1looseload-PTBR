@@ -1,0 +1,28 @@
+name: Build xinput1_4.dll
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout (com submódulos)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configurar MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Compilar (Release x64)
+        run: msbuild sora1looseload.sln /p:Configuration=Release /p:Platform=x64
+
+      - name: Enviar DLL como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: xinput1_4-PTBR
+          path: x64/Release/xinput1_4.dll
